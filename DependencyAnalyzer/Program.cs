@@ -3,12 +3,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml.Linq;
 
 namespace DependencyAnalyzer
 {
     class Options
     {
+        [Option('d', "dot")]
+        public bool Dot { get; set; }
+
         [Option('v', "verbose")]
         public bool Verbose { get; set; }
 
@@ -18,7 +22,7 @@ namespace DependencyAnalyzer
 
     class Program
     {
-        private static bool _verbose;
+        private static Options _options;
 
         static int Main(string[] args)
         {
@@ -30,7 +34,7 @@ namespace DependencyAnalyzer
 
         private static int Run(Options options)
         {
-            _verbose = options.Verbose;
+            _options = options;
             Analyze(options.Path);
             return 0;
         }
@@ -50,7 +54,7 @@ namespace DependencyAnalyzer
             var graph = new Dictionary<string, (IEnumerable<string> ProjectRefs, IEnumerable<string> PackageRefs)>();
             foreach (var project in projects)
             {
-                graph.Add(Path.GetFileName(project), GetRefs(project));
+                graph.Add(Path.GetFileNameWithoutExtension(project), GetRefs(project));
             }
 
             var allProjectRefs = graph.Values.Select(v => v.ProjectRefs).Aggregate((a, b) => Enumerable.Concat(a, b));
@@ -60,7 +64,26 @@ namespace DependencyAnalyzer
             Console.WriteLine($"Total PackageRefs: {allPackageRefs.Count()}");
             Console.WriteLine($"Unique PackageRefs: {allPackageRefs.Distinct().Count()}");
 
-            if (_verbose)
+            if (_options.Dot)
+            {
+                var sb = new StringBuilder();
+
+                sb.AppendLine("digraph G {");
+
+                foreach (var kvp in graph)
+                {
+                    foreach (var r in kvp.Value.ProjectRefs)
+                    {
+                        sb.AppendLine($"    {kvp.Key.Replace('.', '_')} -> {r.Replace('.', '_')};");
+                    }
+                }
+
+                sb.AppendLine("}");
+
+                File.WriteAllText("ProjectRefs.gv", sb.ToString());
+            }
+
+            if (_options.Verbose)
             {
                 foreach (var kvp in graph)
                 {
@@ -112,7 +135,7 @@ namespace DependencyAnalyzer
 
             foreach (var r in root.Descendants("ProjectReference"))
             {
-                projectRefs.Add(Path.GetFileName(r.Attribute("Include").Value));
+                projectRefs.Add(Path.GetFileNameWithoutExtension(r.Attribute("Include").Value));
             }
 
             foreach (var r in root.Descendants("PackageReference"))
