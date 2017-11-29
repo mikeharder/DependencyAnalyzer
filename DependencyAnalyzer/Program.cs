@@ -10,6 +10,9 @@ namespace DependencyAnalyzer
 {
     class Options
     {
+        [Option('i', "dictionary")]
+        public bool Dictionary { get; set; }
+
         [Option('d', "dot")]
         public bool Dot { get; set; }
 
@@ -20,7 +23,7 @@ namespace DependencyAnalyzer
         public string Path { get; set; }
 
         [Option('j', "projectRefs")]
-        public bool ProjectRefs { get; set; } = true;
+        public bool ProjectRefs { get; set; }
 
         [Option('x', "exclude")]
         public IEnumerable<string> Exclude { get; set; }
@@ -105,87 +108,144 @@ namespace DependencyAnalyzer
 
             if (_options.ProjectRefs)
             {
-                Console.WriteLine();
-
-                foreach (var group in graph.Values.OrderBy(p => p.Name).GroupBy(p => p.Rank).OrderByDescending(g => g.Key))
-                {
-                    foreach (var p in group)
-                    {
-                        Console.WriteLine(p.Name);
-
-                        Console.WriteLine("  ProjectRefs");
-                        if (p.ProjectRefs.Any())
-                        {
-                            foreach (var r in p.ProjectRefs)
-                            {
-                                Console.WriteLine($"    {r}");
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"    [None]");
-                        }
-                        Console.WriteLine();
-                    }
-                }
+                PrintProjectRefs(graph);
             }
 
             if (_options.PackageRefs)
             {
-                Console.WriteLine();
-
-                foreach (var kvp in graph)
-                {
-                    Console.WriteLine(kvp.Key);
-
-                    Console.WriteLine("  PackageRefs");
-                    foreach (var r in kvp.Value.PackageRefs)
-                    {
-                        Console.WriteLine($"    {r}");
-                    }
-
-                    Console.WriteLine(Environment.NewLine + "Unique Package Refs");
-                    foreach (var r in allPackageRefs.Distinct())
-                    {
-                        Console.WriteLine(r);
-                    }
-                }
+                PrintPackageRefs(graph, allPackageRefs);
             }
 
             if (_options.Dot)
             {
-                var sb = new StringBuilder();
+                PrintDot(graph);
+            }
 
-                sb.AppendLine("digraph G {");
+            if (_options.Dictionary)
+            {
+                PrintDictionary(graph);
+            }
+        }
 
-                foreach (var group in graph.Values.OrderBy(p => p.Name).GroupBy(p => p.Rank).OrderByDescending(g => g.Key))
+        private static void PrintDictionary(Dictionary<string, Project> graph)
+        {
+            Console.WriteLine();
+
+            var names = new Dictionary<string, string>(graph.Count);
+
+            var count = 1;
+            foreach (var group in graph.Values.OrderBy(p => p.Name).GroupBy(p => p.Rank).OrderBy(g => g.Key))
+            {
+                foreach (var p in group)
                 {
-                    var rankBuilder = new StringBuilder();
-                    rankBuilder.Append("    { rank = same; ");
+                    var newName = "ClassLib" + count.ToString("D3");
+                    names[p.Name] = newName;
 
-                    foreach (var p in group)
+                    Console.Write($"{{ \"{newName}\", ");
+                    if (p.ProjectRefs.Any())
                     {
-                        sb.Append($"    {p.Name.Replace('.', '_')} -> {{ ");
-
+                        Console.Write("new string[] { ");
                         foreach (var r in p.ProjectRefs)
                         {
-                            sb.Append($"{r.Replace('.', '_')} ");
+                            Console.Write($"\"{names[r]}\", ");
                         }
-
-                        sb.AppendLine("}");
-
-                        rankBuilder.Append(p.Name.Replace('.', '_'));
-                        rankBuilder.Append("; ");
+                        Console.Write("} ");
                     }
+                    else
+                    {
+                        Console.Write("Enumerable.Empty<string>() ");
+                    }
+                    Console.WriteLine("},");
 
-                    rankBuilder.Append("}");
-                    sb.AppendLine(rankBuilder.ToString());
+                    count++;
                 }
 
-                sb.AppendLine("}");
+                Console.WriteLine();
+            }
+        }
 
-                File.WriteAllText("ProjectRefs.gv", sb.ToString());
-                Util.RunProcess("dot", "-Tpdf ProjectRefs.gv -o ProjectRefs.pdf", Environment.CurrentDirectory);
+        private static void PrintDot(Dictionary<string, Project> graph)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("digraph G {");
+
+            foreach (var group in graph.Values.OrderBy(p => p.Name).GroupBy(p => p.Rank).OrderByDescending(g => g.Key))
+            {
+                var rankBuilder = new StringBuilder();
+                rankBuilder.Append("    { rank = same; ");
+
+                foreach (var p in group)
+                {
+                    sb.Append($"    {p.Name.Replace('.', '_')} -> {{ ");
+
+                    foreach (var r in p.ProjectRefs)
+                    {
+                        sb.Append($"{r.Replace('.', '_')} ");
+                    }
+
+                    sb.AppendLine("}");
+
+                    rankBuilder.Append(p.Name.Replace('.', '_'));
+                    rankBuilder.Append("; ");
+                }
+
+                rankBuilder.Append("}");
+                sb.AppendLine(rankBuilder.ToString());
+            }
+
+            sb.AppendLine("}");
+
+            File.WriteAllText("ProjectRefs.gv", sb.ToString());
+            Util.RunProcess("dot", "-Tpdf ProjectRefs.gv -o ProjectRefs.pdf", Environment.CurrentDirectory);
+        }
+
+        private static void PrintPackageRefs(Dictionary<string, Project> graph, IEnumerable<string> allPackageRefs)
+        {
+            Console.WriteLine();
+
+            foreach (var kvp in graph)
+            {
+                Console.WriteLine(kvp.Key);
+
+                Console.WriteLine("  PackageRefs");
+                foreach (var r in kvp.Value.PackageRefs)
+                {
+                    Console.WriteLine($"    {r}");
+                }
+
+                Console.WriteLine(Environment.NewLine + "Unique Package Refs");
+                foreach (var r in allPackageRefs.Distinct())
+                {
+                    Console.WriteLine(r);
+                }
+            }
+        }
+
+        private static void PrintProjectRefs(Dictionary<string, Project> graph)
+        {
+            Console.WriteLine();
+
+            foreach (var group in graph.Values.OrderBy(p => p.Name).GroupBy(p => p.Rank).OrderByDescending(g => g.Key))
+            {
+                foreach (var p in group)
+                {
+                    Console.WriteLine(p.Name);
+
+                    Console.WriteLine("  ProjectRefs");
+                    if (p.ProjectRefs.Any())
+                    {
+                        foreach (var r in p.ProjectRefs)
+                        {
+                            Console.WriteLine($"    {r}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"    [None]");
+                    }
+                    Console.WriteLine();
+                }
             }
         }
 
