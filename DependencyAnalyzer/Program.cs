@@ -18,6 +18,9 @@ namespace DependencyAnalyzer
 
         [Option('p', "path", Required = true)]
         public string Path { get; set; }
+
+        [Option('x', "exclude")]
+        public IEnumerable<string> Exclude { get; set; }
     }
 
     class Program
@@ -47,14 +50,27 @@ namespace DependencyAnalyzer
 
         private static void Analyze(string path)
         {
-            var projects = FindProjects(path);
+            var allProjects = FindProjects(path);
+            var projects = allProjects.Where(p => !p.ContainsAny(_options.Exclude, StringComparison.OrdinalIgnoreCase));
 
             Console.WriteLine($"Total Projects: {projects.Count()}");
 
             var graph = new Dictionary<string, (IEnumerable<string> ProjectRefs, IEnumerable<string> PackageRefs)>();
+            var inverseProjectRefs = new Dictionary<string, IEnumerable<string>>();
+
             foreach (var project in projects)
             {
-                graph.Add(Path.GetFileNameWithoutExtension(project), GetRefs(project));
+                var projectName = Path.GetFileNameWithoutExtension(project);
+                var refs = GetRefs(project);
+                graph.Add(projectName, refs);
+
+                foreach (var r in refs.ProjectRefs)
+                {
+                    if (inverseProjectRefs.ContainsKey(r))
+                    {
+                        inverseProjectRefs[r] = Enumerable.Append(inverseProjectRefs[r], projectName);
+                    }
+                }
             }
 
             var allProjectRefs = graph.Values.Select(v => v.ProjectRefs).Aggregate((a, b) => Enumerable.Concat(a, b));
@@ -81,6 +97,7 @@ namespace DependencyAnalyzer
                 sb.AppendLine("}");
 
                 File.WriteAllText("ProjectRefs.gv", sb.ToString());
+                Util.RunProcess("dot", "-Tpdf ProjectRefs.gv -o ProjectRefs.pdf", Environment.CurrentDirectory);
             }
 
             if (_options.Verbose)
@@ -135,7 +152,11 @@ namespace DependencyAnalyzer
 
             foreach (var r in root.Descendants("ProjectReference"))
             {
-                projectRefs.Add(Path.GetFileNameWithoutExtension(r.Attribute("Include").Value));
+                var name = Path.GetFileNameWithoutExtension(r.Attribute("Include").Value);
+                if (!name.ContainsAny(_options.Exclude, StringComparison.OrdinalIgnoreCase))
+                {
+                    projectRefs.Add(name);
+                }
             }
 
             foreach (var r in root.Descendants("PackageReference"))
