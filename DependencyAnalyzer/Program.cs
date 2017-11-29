@@ -131,23 +131,20 @@ namespace DependencyAnalyzer
         {
             Console.WriteLine();
 
-            var names = new Dictionary<string, string>(graph.Count);
-
             var count = 1;
             foreach (var group in graph.Values.OrderBy(p => p.Name).GroupBy(p => p.Rank).OrderBy(g => g.Key))
             {
+                Console.WriteLine($"// Rank {group.Key}");
+
                 foreach (var p in group)
                 {
-                    var newName = "ClassLib" + count.ToString("D3");
-                    names[p.Name] = newName;
-
-                    Console.Write($"{{ \"{newName}\", ");
+                    Console.Write($"{{ \"{p.Name}\", ");
                     if (p.ProjectRefs.Any())
                     {
                         Console.Write("new string[] { ");
                         foreach (var r in p.ProjectRefs)
                         {
-                            Console.Write($"\"{names[r]}\", ");
+                            Console.Write($"\"{r}\", ");
                         }
                         Console.Write("} ");
                     }
