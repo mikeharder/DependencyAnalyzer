@@ -142,7 +142,7 @@ namespace DependencyAnalyzer
                     if (p.ProjectRefs.Any())
                     {
                         Console.Write("new string[] { ");
-                        foreach (var r in p.ProjectRefs)
+                        foreach (var r in p.ProjectRefs.OrderBy(s => s))
                         {
                             Console.Write($"\"{r}\", ");
                         }
