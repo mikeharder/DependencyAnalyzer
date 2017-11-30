@@ -131,7 +131,6 @@ namespace DependencyAnalyzer
         {
             Console.WriteLine();
 
-            var count = 1;
             foreach (var group in graph.Values.OrderBy(p => p.Name).GroupBy(p => p.Rank).OrderBy(g => g.Key))
             {
                 Console.WriteLine($"// Rank {group.Key}");
@@ -153,8 +152,6 @@ namespace DependencyAnalyzer
                         Console.Write("Enumerable.Empty<string>() ");
                     }
                     Console.WriteLine("),");
-
-                    count++;
                 }
 
                 Console.WriteLine();
