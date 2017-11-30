@@ -10,8 +10,8 @@ namespace DependencyAnalyzer
 {
     class Options
     {
-        [Option('i', "dictionary")]
-        public bool Dictionary { get; set; }
+        [Option('l', "list")]
+        public bool List { get; set; }
 
         [Option('d', "dot")]
         public bool Dot { get; set; }
@@ -121,13 +121,13 @@ namespace DependencyAnalyzer
                 PrintDot(graph);
             }
 
-            if (_options.Dictionary)
+            if (_options.List)
             {
-                PrintDictionary(graph);
+                PrintList(graph);
             }
         }
 
-        private static void PrintDictionary(Dictionary<string, Project> graph)
+        private static void PrintList(Dictionary<string, Project> graph)
         {
             Console.WriteLine();
 
@@ -138,7 +138,7 @@ namespace DependencyAnalyzer
 
                 foreach (var p in group)
                 {
-                    Console.Write($"{{ \"{p.Name}\", ");
+                    Console.Write($"( \"{p.Name}\", ");
                     if (p.ProjectRefs.Any())
                     {
                         Console.Write("new string[] { ");
@@ -152,7 +152,7 @@ namespace DependencyAnalyzer
                     {
                         Console.Write("Enumerable.Empty<string>() ");
                     }
-                    Console.WriteLine("},");
+                    Console.WriteLine("),");
 
                     count++;
                 }
