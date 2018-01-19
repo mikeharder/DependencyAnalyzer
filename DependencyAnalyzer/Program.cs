@@ -101,7 +101,7 @@ namespace DependencyAnalyzer
             Console.WriteLine();
             Console.WriteLine($"Total ProjectRefs: {allProjectRefs.Count()}");
 
-            var allPackageRefs = graph.Values.Select(v => v.PackageRefs).Aggregate((a, b) => Enumerable.Concat(a, b));
+            var allPackageRefs = graph.Values.Select(v => v.PackageRefs.Select(p => p.Name)).Aggregate((a, b) => Enumerable.Concat(a, b));
             Console.WriteLine();
             Console.WriteLine($"Total PackageRefs: {allPackageRefs.Count()}");
             Console.WriteLine($"Unique PackageRefs: {allPackageRefs.Distinct().Count()}");
@@ -155,16 +155,16 @@ namespace DependencyAnalyzer
 
                     if (p.PackageRefs.Any())
                     {
-                        Console.Write("new string[] { ");
-                        foreach (var r in p.PackageRefs.OrderBy(s => s))
+                        Console.Write("new (string Name, string Version)[] { ");
+                        foreach (var r in p.PackageRefs.OrderBy(s => s.Name))
                         {
-                            Console.Write($"\"{r}\", ");
+                            Console.Write($"(\"{r.Name}\" ,\"{r.Version}\"), ");
                         }
                         Console.Write("} ");
                     }
                     else
                     {
-                        Console.Write("Enumerable.Empty<string>() ");
+                        Console.Write("Enumerable.Empty<(string Name, string Version)>() ");
                     }
 
                     Console.WriteLine("),");
@@ -224,11 +224,12 @@ namespace DependencyAnalyzer
                     Console.WriteLine($"    {r}");
                 }
 
-                Console.WriteLine(Environment.NewLine + "Unique Package Refs");
-                foreach (var r in allPackageRefs.Distinct())
-                {
-                    Console.WriteLine(r);
-                }
+            }
+
+            Console.WriteLine(Environment.NewLine + "Unique Package Refs");
+            foreach (var r in allPackageRefs.Distinct())
+            {
+                Console.WriteLine(r);
             }
         }
 
@@ -275,10 +276,10 @@ namespace DependencyAnalyzer
             }
         }
 
-        private static (IEnumerable<string> ProjectRefs, IEnumerable<string> PackageRefs) GetRefs(string project)
+        private static (IEnumerable<string> ProjectRefs, IEnumerable<(string Name, string Version)> PackageRefs) GetRefs(string project)
         {
             var projectRefs = new List<string>();
-            var packageRefs = new List<string>();
+            var packageRefs = new List<(string Name, string Version)>();
 
             var root = XElement.Load(project);
 
@@ -293,7 +294,7 @@ namespace DependencyAnalyzer
 
             foreach (var r in root.Descendants("PackageReference"))
             {
-                packageRefs.Add(r.Attribute("Include").Value);
+                packageRefs.Add((r.Attribute("Include").Value, r.Attribute("Version").Value));
             }
 
             return (projectRefs, packageRefs);

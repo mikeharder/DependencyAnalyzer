@@ -11,7 +11,7 @@ namespace DependencyAnalyzer
 
         public string Name { get; }
 
-        public IEnumerable<string> PackageRefs { get; set; }
+        public IEnumerable<(string Name, string Version)> PackageRefs { get; set; }
 
         public IEnumerable<string> ProjectRefs { get; set; }
 
