@@ -160,11 +160,11 @@ namespace DependencyAnalyzer
                         {
                             Console.Write($"\"{r}\", ");
                         }
-                        Console.Write("}, ");
+                        Console.Write("} ");
                     }
                     else
                     {
-                        Console.Write("Enumerable.Empty<string>(), ");
+                        Console.Write("Enumerable.Empty<string>() ");
                     }
 
                     Console.WriteLine("),");
