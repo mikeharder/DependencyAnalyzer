@@ -138,6 +138,7 @@ namespace DependencyAnalyzer
                 foreach (var p in group)
                 {
                     Console.Write($"( \"{p.Name}\", ");
+
                     if (p.ProjectRefs.Any())
                     {
                         Console.Write("new string[] { ");
@@ -145,12 +146,27 @@ namespace DependencyAnalyzer
                         {
                             Console.Write($"\"{r}\", ");
                         }
-                        Console.Write("} ");
+                        Console.Write("}, ");
                     }
                     else
                     {
-                        Console.Write("Enumerable.Empty<string>() ");
+                        Console.Write("Enumerable.Empty<string>(), ");
                     }
+
+                    if (p.PackageRefs.Any())
+                    {
+                        Console.Write("new string[] { ");
+                        foreach (var r in p.PackageRefs.OrderBy(s => s))
+                        {
+                            Console.Write($"\"{r}\", ");
+                        }
+                        Console.Write("}, ");
+                    }
+                    else
+                    {
+                        Console.Write("Enumerable.Empty<string>(), ");
+                    }
+
                     Console.WriteLine("),");
                 }
 
