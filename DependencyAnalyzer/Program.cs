@@ -27,6 +27,9 @@ namespace DependencyAnalyzer
 
         [Option('x', "exclude")]
         public IEnumerable<string> Exclude { get; set; }
+
+        [Option('v', "versions", Separator = ',')]
+        public IEnumerable<string> DependencyVersionPaths { get; set; }
     }
 
     class Program
@@ -62,12 +65,13 @@ namespace DependencyAnalyzer
             var projects = allProjects.Where(p => !p.ContainsAny(_options.Exclude, StringComparison.OrdinalIgnoreCase));
             Console.WriteLine($"Selected Projects: {projects.Count()}");
 
+            var dependencyVersions = GetDependencyVersions();
             var graph = new Dictionary<string, Project>(projects.Count());
 
             foreach (var project in projects)
             {
                 var name = Path.GetFileNameWithoutExtension(project);
-                var (projectRefs, packageRefs) = GetRefs(project);
+                var (projectRefs, packageRefs) = GetRefs(project, dependencyVersions);
                 graph.Add(name, new Project(name) { ProjectRefs = projectRefs, PackageRefs = packageRefs });
             }
 
@@ -276,7 +280,8 @@ namespace DependencyAnalyzer
             }
         }
 
-        private static (IEnumerable<string> ProjectRefs, IEnumerable<(string Name, string Version)> PackageRefs) GetRefs(string project)
+        private static (IEnumerable<string> ProjectRefs, IEnumerable<(string Name, string Version)> PackageRefs) GetRefs(
+            string project, IReadOnlyDictionary<string, string> dependencyVersions)
         {
             var projectRefs = new List<string>();
             var packageRefs = new List<(string Name, string Version)>();
@@ -294,10 +299,37 @@ namespace DependencyAnalyzer
 
             foreach (var r in root.Descendants("PackageReference"))
             {
-                packageRefs.Add((r.Attribute("Include").Value, r.Attribute("Version").Value));
+                var name = r.Attribute("Include").Value;
+                var version = r.Attribute("Version").Value;
+
+                if (version.StartsWith("$("))
+                {
+                    version = dependencyVersions[version.Substring(2, version.Length - 3)];
+                }
+
+                packageRefs.Add((name, version));
             }
 
             return (projectRefs, packageRefs);
+        }
+
+        private static IReadOnlyDictionary<string, string> GetDependencyVersions()
+        {
+            var dependencyVersions = new Dictionary<string, string>();
+
+            foreach (var path in _options.DependencyVersionPaths)
+            {
+                var root = XElement.Load(path);
+                foreach (var r in root.Descendants(XName.Get("PropertyGroup", root.Name.NamespaceName)))
+                {
+                    foreach (var p in r.Descendants())
+                    {
+                        dependencyVersions[p.Name.LocalName] = p.Value;
+                    }
+                }
+            }
+
+            return dependencyVersions;
         }
     }
 }
